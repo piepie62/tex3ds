@@ -161,41 +161,49 @@ struct CharMap
   {
   }
 
-  CharMap(FT_ULong code, FT_UInt faceIndex)
-  : code (code), faceIndex (faceIndex), cfntIndex (0)
+  CharMap(FT_ULong code, FT_UInt faceIndex, FT_Face face)
+  : code (code), faceIndex (faceIndex), cfntIndex (0), face (face)
   {
   }
 
   const FT_ULong code;      ///< Code point.
   const FT_UInt  faceIndex; ///< FreeType face index.
   std::uint16_t  cfntIndex; ///< CFNT glyph index.
+  FT_Face face;
 };
 
-BCFNT::BCFNT(FT_Face face)
+BCFNT::BCFNT(std::vector<FT_Face> &faces)
 {
-  lineFeed = face->size->metrics.height >> 6;
-  height = (face->bbox.yMax - face->bbox.yMin) >> 6;
-  width = (face->bbox.xMax - face->bbox.xMin) >> 6;
-  maxWidth = face->size->metrics.max_advance >> 6;
-  ascent = face->size->metrics.ascender >> 6;
-  int descent = face->size->metrics.descender >> 6;
+  int descent = std::numeric_limits<int>::max();
 
   std::map<FT_ULong, CharMap> faceMap;
 
+  for (auto& face : faces)
   {
+    lineFeed = std::max(lineFeed, static_cast<uint8_t>(face->size->metrics.height >> 6));
+    height = std::max(height, static_cast<uint8_t>((face->bbox.yMax - face->bbox.yMin) >> 6));
+    width = std::max(width, static_cast<uint8_t>((face->bbox.xMax - face->bbox.xMin) >> 6));
+    maxWidth = std::max(maxWidth, static_cast<uint8_t>(face->size->metrics.max_advance >> 6));
+    ascent = std::max(ascent, static_cast<uint8_t>(face->size->metrics.ascender >> 6));
+    descent = std::min(descent, static_cast<int>(face->size->metrics.descender) >> 6);
+
     // extract mappings from font face
     FT_UInt faceIndex;
     FT_ULong code = FT_Get_First_Char(face, &faceIndex);
     while(faceIndex != 0)
     {
       // only supports 16-bit code points; also 0xFFFF is explicitly a non-character
-      if(code >= std::numeric_limits<std::uint16_t>::max())
+      if(code >= std::numeric_limits<std::uint16_t>::max() || faceMap.count(code))
+      {
+        code = FT_Get_Next_Char(face, code, &faceIndex);
         continue;
+      }
 
       FT_Error error = FT_Load_Glyph(face, faceIndex, FT_LOAD_RENDER);
       if(error)
       {
         std::fprintf(stderr, "FT_Load_Glyph: %s\n", ft_error(error));
+        code = FT_Get_Next_Char(face, code, &faceIndex);
         continue;
       }
 
@@ -208,7 +216,7 @@ BCFNT::BCFNT(FT_Face face)
       if(face->glyph->bitmap.width > maxWidth)
         maxWidth = face->glyph->bitmap.width;
 
-      faceMap.emplace(code, CharMap(code, faceIndex));
+      faceMap.emplace(code, CharMap(code, faceIndex, face));
       code = FT_Get_Next_Char(face, code, &faceIndex);
     }
   }
@@ -266,6 +274,7 @@ BCFNT::BCFNT(FT_Face face)
     for(std::uint16_t code = cmap.codeBegin; code <= cmap.codeEnd; ++code)
     {
       // load glyph and render
+      FT_Face face = faceMap[code].face;
       FT_Error error = FT_Load_Glyph(face, faceMap[code].faceIndex, FT_LOAD_RENDER);
       if(error)
       {
@@ -302,8 +311,8 @@ BCFNT::BCFNT(FT_Face face)
       const unsigned sheetY = (sheetIndex / glyphsPerRow) * this->glyphHeight + 1;
 
       Pixels cache(*sheet);
-      assert(sheetX + cellWidth < sheet->columns());
-      assert(sheetY + cellHeight < sheet->rows());
+      assert(sheetX + cellWidth <= sheet->columns());
+      assert(sheetY + cellHeight <= sheet->rows());
       PixelPacket p = cache.get(sheetX, sheetY, cellWidth, cellHeight);
       for(unsigned y = 0; y < face->glyph->bitmap.rows; ++y)
       {

@@ -112,7 +112,7 @@ struct CMAP
 class BCFNT
 {
 public:
-  BCFNT(FT_Face face);
+  BCFNT(std::vector<FT_Face> &face);
 
   bool serialize(const std::string &path);
 
@@ -124,11 +124,11 @@ private:
   std::size_t numSheets;
   std::uint16_t altIndex;
   CharWidthInfo defaultWidth;
-  std::uint8_t lineFeed;
-  std::uint8_t height;
-  std::uint8_t width;
-  std::uint8_t maxWidth;
-  std::uint8_t ascent;
+  std::uint8_t lineFeed = 0;
+  std::uint8_t height = 0;
+  std::uint8_t width = 0;
+  std::uint8_t maxWidth = 0;
+  std::uint8_t ascent = 0;
   
   int cellWidth;
   int cellHeight;

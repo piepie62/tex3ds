@@ -60,7 +60,7 @@ void print_version()
  */
 void print_usage(const char *prog)
 {
-  std::printf("Usage: %s [OPTIONS...] <input>\n", prog);
+  std::printf("Usage: %s [OPTIONS...] <input1> [input2...]\n", prog);
 
   std::printf(
     "  Options:\n"
@@ -68,7 +68,7 @@ void print_usage(const char *prog)
     "    -o, --output <output>        Output file\n"
     "    -s, --size <size>            Set font size in points\n"
     "    -v, --version                Show version and copyright information\n"
-    "    <input>                      Input file\n\n"
+    "    <inputN>                     Input file(s). Lower numbers get priority\n\n"
   );
 }
 
@@ -147,13 +147,11 @@ int main(int argc, char *argv[])
     return EXIT_FAILURE;
   }
 
-  if(optind != argc - 1)
+  std::vector<std::string> inputs;
+  for (int i = optind; i < argc; i++)
   {
-    std::fprintf(stderr, "Too many arguments provided\n");
-    return EXIT_FAILURE;
+    inputs.push_back(argv[i]);
   }
-
-  std::string input_path = argv[optind];
 
   FT_Library library;
   FT_Error error = FT_Init_FreeType(&library);
@@ -163,37 +161,43 @@ int main(int argc, char *argv[])
     return EXIT_FAILURE;
   }
 
-  FT_Face face;
-  error = FT_New_Face(library, input_path.c_str(), 0, &face);
-  if(error)
+  std::vector<FT_Face> faces;
+  for (size_t i = 0; i < inputs.size(); i++)
   {
-    std::fprintf(stderr, "FT_New_Face: %s\n", ft_error(error));
-    FT_Done_FreeType(library);
-    return EXIT_FAILURE;
+    FT_Face face;
+    error = FT_New_Face(library, inputs[i].c_str(), 0, &face);
+    if(error)
+    {
+      std::fprintf(stderr, "FT_New_Face: %s\n", ft_error(error));
+      FT_Done_FreeType(library);
+      return EXIT_FAILURE;
+    }
+
+    error = FT_Select_Charmap(face, FT_ENCODING_UNICODE);
+    if(error)
+    {
+      std::fprintf(stderr, "FT_Select_Charmap: %s\n", ft_error(error));
+      FT_Done_Face(face);
+      FT_Done_FreeType(library);
+      return EXIT_FAILURE;
+    }
+
+    error = FT_Set_Char_Size(face, size << 6, 0, 96, 0);
+    if(error)
+    {
+      std::fprintf(stderr, "FT_Set_Pixel_Sizes: %s\n", ft_error(error));
+      FT_Done_Face(face);
+      FT_Done_FreeType(library);
+      return EXIT_FAILURE;
+    }
+    faces.push_back(face);
   }
 
-  error = FT_Select_Charmap(face, FT_ENCODING_UNICODE);
-  if(error)
-  {
-    std::fprintf(stderr, "FT_Select_Charmap: %s\n", ft_error(error));
-    FT_Done_Face(face);
-    FT_Done_FreeType(library);
-    return EXIT_FAILURE;
-  }
-
-  error = FT_Set_Char_Size(face, size << 6, 0, 96, 0);
-  if(error)
-  {
-    std::fprintf(stderr, "FT_Set_Pixel_Sizes: %s\n", ft_error(error));
-    FT_Done_Face(face);
-    FT_Done_FreeType(library);
-    return EXIT_FAILURE;
-  }
-
-  auto bcfnt = future::make_unique<bcfnt::BCFNT> (face);
+  auto bcfnt = future::make_unique<bcfnt::BCFNT> (faces);
   const int code = bcfnt->serialize(output_path) ? EXIT_SUCCESS : EXIT_FAILURE;
 
-  FT_Done_Face(face);
+  for (auto &face : faces)
+    FT_Done_Face(face);
   FT_Done_FreeType(library);
   return code;
 }
