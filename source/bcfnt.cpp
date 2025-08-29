@@ -606,6 +606,8 @@ bool BCFNT::serialize (const std::string &path)
 	const std::uint32_t sheetOffset = (fileSize + MASK) & ~MASK;
 	fileSize                        = sheetOffset + sheetImages.size () * SHEET_SIZE;
 
+	const std::uint32_t totalTglpSize = fileSize - tglpOffset;
+
 	// CWDH headers + data
 	const std::uint32_t cwdhOffset = fileSize;
 	fileSize += 0x10;                          // CWDH header
@@ -676,7 +678,7 @@ bool BCFNT::serialize (const std::string &path)
 	// TGLP header
 	assert (std::distance (std::begin (output), it) == tglpOffset);
 	it << "TGLP"                                    // magic
-	   << static_cast<std::uint32_t> (0x20)         // section size
+	   << static_cast<std::uint32_t> (totalTglpSize)         // section size
 	   << static_cast<std::uint8_t> (cellWidth)     // cell width
 	   << static_cast<std::uint8_t> (cellHeight)    // cell height
 	   << static_cast<std::uint8_t> (ascent)        // cell baseline
