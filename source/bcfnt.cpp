@@ -717,7 +717,7 @@ bool BCFNT::serialize (const std::string &path)
 	it << "CWDH"                                                              // magic
 	   << static_cast<std::uint32_t> (0x10 + ((3 * glyphs.size () + 3) & ~3)) // section size
 	   << static_cast<std::uint16_t> (0)                                      // start index
-	   << static_cast<std::uint16_t> (glyphs.size ())                         // end index
+	   << static_cast<std::uint16_t> (glyphs.size () - 1)                     // end index
 	   << static_cast<std::uint32_t> (0);                                     // next CWDH offset
 
 	for (const auto &info : glyphs)
