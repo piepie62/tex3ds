@@ -341,13 +341,6 @@ void BCFNT::addFont (std::shared_ptr<freetype::Face> face_,
 	int descent = std::numeric_limits<int>::max ();
 
 	lineFeed = std::max (lineFeed, static_cast<std::uint8_t> (face->size->metrics.height >> 6));
-	height =
-	    std::max (height, static_cast<std::uint8_t> ((face->bbox.yMax - face->bbox.yMin) >> 6));
-	width = std::max (width, static_cast<std::uint8_t> ((face->bbox.xMax - face->bbox.xMin) >> 6));
-	maxWidth =
-	    std::max (maxWidth, static_cast<std::uint8_t> (face->size->metrics.max_advance >> 6));
-	ascent  = std::max (ascent, static_cast<std::uint8_t> (face->size->metrics.ascender >> 6));
-	descent = std::min (descent, static_cast<int> (face->size->metrics.descender) >> 6);
 
 	std::vector<std::shared_future<void>> futures;
 	std::mutex mutex;
@@ -385,6 +378,8 @@ void BCFNT::addFont (std::shared_ptr<freetype::Face> face_,
 				descent =
 				    std::min<int> (descent, face->glyph->bitmap_top - face->glyph->bitmap.rows);
 				maxWidth = std::max<std::uint8_t> (maxWidth, face->glyph->bitmap.width);
+				height = std::max<std::uint8_t> (height, face->glyph->metrics.height >> 6);
+				width = std::max<std::uint8_t> (width, face->glyph->metrics.width >> 6);
 
 				glyphs.emplace (code, glyph);
 			};
