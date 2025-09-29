@@ -661,9 +661,9 @@ bool BCFNT::serialize (const std::string &path)
 	   << static_cast<std::uint8_t> (0x1)                     // font type
 	   << static_cast<std::uint8_t> (lineFeed)                // line feed
 	   << static_cast<std::uint16_t> (altIndex)               // alternate char index
-	   << static_cast<std::uint8_t> (defaultWidth.left)       // default width (left)
-	   << static_cast<std::uint8_t> (defaultWidth.glyphWidth) // default width (glyph width)
-	   << static_cast<std::uint8_t> (defaultWidth.charWidth)  // default width (char width)
+	   << static_cast<std::uint8_t> (0)                       // default width (left)
+	   << static_cast<std::uint8_t> (cellWidth)               // default width (glyph width)
+	   << static_cast<std::uint8_t> (cellWidth)               // default width (char width)
 	   << static_cast<std::uint8_t> (0x1)                     // encoding
 	   << static_cast<std::uint32_t> (tglpOffset + 8)         // TGLP offset
 	   << static_cast<std::uint32_t> (cwdhOffset + 8)         // CWDH offset
